@@ -95,27 +95,30 @@ class UrlSpider(scrapy.Spider):
         global COLLECTED_BUFFER, WRITTEN_COUNT
 
         processor = DocumentProcessor(parsers=[CSSFHTMLParser(), PDFParser()])
+        content_type = response.headers.get("Content-Type", b"").decode("utf-8").split(";")[0]
 
         if not self.is_nested_only_url(response.url):
             # self.collected.append({"url": full_url})
 
-            content_type = response.headers.get("Content-Type", b"").decode("utf-8").split(";")[0]
             elements = processor.process(response)
 
             yield {
                 "url": response.url,
                 "content_type": content_type,
-                # "elements": [el.to_dict() for el in elements],
+                "elements": [el.to_dict() for el in elements],
             }
 
             COLLECTED_BUFFER.append({
                 "url": response.url,
                 "content_type": content_type,
-                # "elements": [el.to_dict() for el in elements],
+                "elements": [el.to_dict() for el in elements],
             })
             WRITTEN_COUNT += 1
             if len(COLLECTED_BUFFER) >= CHUNK_SIZE:
                 self.flush_buffer()
+
+        if  not content_type.startswith("text/html"):
+            return
 
         for href in response.css("a::attr(href)").getall():
             if not href:
@@ -138,7 +141,7 @@ class UrlSpider(scrapy.Spider):
 
             self.visited.add(full_url)
 
-            if self.get_domain_type(full_url) == "primary" and response.headers.get("Content-Type", b"").startswith(b"text/html"):
+            if self.get_domain_type(full_url) == "primary":
                 self.logger.info(f"Following primary: {full_url}")
                 yield response.follow(full_url, callback=self.parse)
 
