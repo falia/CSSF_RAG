@@ -1,0 +1,27 @@
+pip install --upgrade langchain-community langchain-unstructured unstructured[all] pypandoc
+pip install scrapy
+pip install w3lib
+#pip install "unstructured[pdf]"
+pip install "unstructured[pdf,html]"   ----  pip install pycocotools-windows
+#pip install "unstructured[pdf,html]" --no-cache-dir
+
+
+-- separately with no image ocr
+pip install pi-heif
+pip install unstructured
+pip install pdfminer.six
+pip install beautifulsoup4 lxml
+pip install unstructured-inference
+pip install pdf2image
+
+------------
+windows:pip install python-magic-bin
+
+linux:
+sudo apt-get install libmagic1
+pip install python-magicµ
+
+macos
+brew install libmagic
+pip install python-magic
+--------------
