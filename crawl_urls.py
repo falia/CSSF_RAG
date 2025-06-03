@@ -56,6 +56,8 @@ class UrlSpider(scrapy.Spider):
     visited = set()
     collected = []
 
+
+
     file_counter = 1
 
     def __init__(self, *args, **kwargs):

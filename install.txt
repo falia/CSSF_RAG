@@ -1,10 +1,17 @@
 pip install --upgrade langchain-community langchain-unstructured unstructured[all] pypandoc
+
+pip install langchain-core
+pip install langchain-milvus
+
 pip install scrapy
 pip install w3lib
 #pip install "unstructured[pdf]"
 pip install "unstructured[pdf,html]"   ----  pip install pycocotools-windows
 #pip install "unstructured[pdf,html]" --no-cache-dir
 
+pip install pymilvus
+
+pip install torch
 
 -- separately with no image ocr
 pip install pi-heif
@@ -13,6 +20,8 @@ pip install pdfminer.six
 pip install beautifulsoup4 lxml
 pip install unstructured-inference
 pip install pdf2image
+
+
 
 ------------
 windows:pip install python-magic-bin
@@ -25,3 +34,7 @@ macos
 brew install libmagic
 pip install python-magic
 --------------
+
+debug
+pip install pipdeptree
+pipdeptree --reverse --packages grpcio-status
