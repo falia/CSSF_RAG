@@ -13,6 +13,10 @@ pip install pymilvus
 
 pip install torch
 
+pip install sentence-transformers
+
+pip install -U langchain-huggingface
+
 -- separately with no image ocr
 pip install pi-heif
 pip install unstructured
@@ -38,3 +42,6 @@ pip install python-magic
 debug
 pip install pipdeptree
 pipdeptree --reverse --packages grpcio-status
+
+
+-------------------- UI client: docker run -d -p 7000:3000 --name milvus-insight zilliz/attu

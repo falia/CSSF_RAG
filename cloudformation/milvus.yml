@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy Milvus Standalone on EC2 (Amazon Linux)
+
+Resources:
+  MilvusSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Milvus Ports
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 19530
+          ToPort: 19530
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 19121
+          ToPort: 19121
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0          
+
+  MilvusInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.large
+      # Use Amazon Linux 2023 AMI for your region; this is for us-east-1
+      ImageId: ami-03400c3b73b5086e9 
+      KeyName: milvus-key-pair
+      SecurityGroups:
+        - !Ref MilvusSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          exec > /var/log/user-data.log 2>&1
+
+          yum update -y
+          dnf install -y docker git wget
+
+          systemctl enable docker
+          systemctl start docker
+
+          # Add ec2-user to docker group for non-sudo access
+          usermod -aG docker ec2-user
+
+          # Wait until Docker is ready
+          until docker info >/dev/null 2>&1; do
+            echo "Waiting for Docker to start..."
+            sleep 2
+          done
+
+          # Install Docker Compose v2 plugin
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+          # Set up Milvus
+          mkdir -p /home/ec2-user/milvus
+          cd /home/ec2-user/milvus
+
+          wget https://github.com/milvus-io/milvus/releases/download/v2.5.13/milvus-standalone-docker-compose.yml \
+            -O docker-compose.yml
+
+          docker compose up -d
+
+Outputs:
+  InstancePublicIP:
+    Value: !GetAtt MilvusInstance.PublicIp
+    Description: Milvus EC2 IP address
