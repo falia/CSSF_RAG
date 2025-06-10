@@ -1,0 +1,12 @@
+langchain-community
+langchain-unstructured 
+unstructured[all] 
+pypandoc
+langchain-core
+langchain-milvus
+scrapy
+w3lib
+pymilvus
+torch
+sentence-transformers
+langchain-huggingface
