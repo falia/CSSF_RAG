@@ -102,8 +102,8 @@ class UrlSpider(scrapy.Spider):
                 self.rules.mark_visited(full_url)
                 self.logger.info(f"Following primary: {full_url}")
                 yield response.follow(full_url, callback=self.parse)
-            else:
-                self.logger.info(f"Not followed url: {full_url}")
+            #else:
+                #self.logger.info(f"Not followed url: {full_url}")
 
 
 # === Run the spider ===
