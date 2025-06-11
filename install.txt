@@ -32,7 +32,7 @@ windows:pip install python-magic-bin
 
 linux:
 sudo apt-get install libmagic1
-pip install python-magicµ
+pip install python-magic
 
 macos
 brew install libmagic
@@ -45,3 +45,50 @@ pipdeptree --reverse --packages grpcio-status
 
 
 -------------------- UI client: docker run -d -p 7000:3000 --name milvus-insight zilliz/attu
+
+
+
+
+langchain-huggingface
+langchain-community
+langchain-core
+langchain-milvus
+pymilvus
+boto3
+
+
+
+----
+sudo dnf install -y file-devel
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y python3.11
+sudo dnf install -y python3.11-devel
+sudo dnf install -y mesa-libGL
+
+python3.11 -m ensurepip --upgrade
+python3.11 -m pip install -r requirements.txt
+
+
+
+-------------------
+
+in ubuntu:
+
+
+sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+
+//sudo apt install -y python3-pip
+//sudo apt install -y python3-venv
+
+sudo apt install -y tesseract-ocr
+sudo apt install -y poppler-utils
+sudo apt install -y libgl1
+
+python3.11 -m venv venv
+source venv/bin/activate
+
+pip install --upgrade pip
+pip install -r requirements.txt

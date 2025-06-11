@@ -11,12 +11,7 @@ torch
 sentence-transformers
 langchain-huggingface
 python-magic
-poppler-utils
-tesseract-ocr
-mesa-libGL
 pdfminer.six
 pi-heif
-
 pdf2image
-
 unstructured[all-docs]
