@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Deploy Milvus Standalone on EC2 (Amazon Linux)
+Description: Deploy Milvus Standalone on EC2 (Ubuntu)
 
 Resources:
   MilvusSecurityGroup:
@@ -18,35 +18,35 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0          
+          CidrIp: 0.0.0.0/0
 
   MilvusInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.large
-      # Use Amazon Linux 2023 AMI for your region; this is for us-east-1
-      ImageId: ami-03400c3b73b5086e9 
+      # Use Ubuntu 22.04 LTS AMI (for us-east-1). Replace with region-specific ID if needed.
+      ImageId: ami-01f23391a59163da9
       KeyName: milvus-key-pair
       SecurityGroups:
         - !Ref MilvusSecurityGroup
       BlockDeviceMappings:
-        - DeviceName: /dev/xvda
+        - DeviceName: /dev/sda1
           Ebs:
-            VolumeSize: 50     
-            VolumeType: gp3        
+            VolumeSize: 50
+            VolumeType: gp3
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           exec > /var/log/user-data.log 2>&1
 
-          yum update -y
-          dnf install -y docker git wget
+          apt update -y
+          apt install -y docker.io git curl wget
 
           systemctl enable docker
           systemctl start docker
 
-          # Add ec2-user to docker group for non-sudo access
-          usermod -aG docker ec2-user
+          # Add ubuntu user to docker group
+          usermod -aG docker ubuntu
 
           # Wait until Docker is ready
           until docker info >/dev/null 2>&1; do
@@ -54,15 +54,15 @@ Resources:
             sleep 2
           done
 
-          # Install Docker Compose v2 plugin
+          # Install Docker Compose v2 as plugin
           mkdir -p /usr/local/lib/docker/cli-plugins
           curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
             -o /usr/local/lib/docker/cli-plugins/docker-compose
           chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
           # Set up Milvus
-          mkdir -p /home/ec2-user/milvus
-          cd /home/ec2-user/milvus
+          mkdir -p /home/ubuntu/milvus
+          cd /home/ubuntu/milvus
 
           wget https://github.com/milvus-io/milvus/releases/download/v2.5.13/milvus-standalone-docker-compose.yml \
             -O docker-compose.yml

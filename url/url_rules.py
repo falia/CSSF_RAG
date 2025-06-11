@@ -73,8 +73,8 @@ class URLRules:
             return False
         if not self.is_allowed_domain(url):
             return False
-        if not self.get_domain_type(url)  == "primary":
-            return False
+        #if not self.get_domain_type(url)  == "primary":
+            #return False
 
         return True
 
