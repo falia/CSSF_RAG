@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 
 import logging
+from w3lib.url import canonicalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +39,13 @@ class URLRules:
         ]
         self.visited = set()
 
+    def canonical(self, url):
+        return canonicalize_url(url, keep_fragments=False)
+
     def is_excluded(self, url):
         for pattern in self.exclude_url_patterns:
             if re.search(pattern, url, re.IGNORECASE):
-                logger.debug(f"Excluded by pattern: {pattern} → {url}")
+                logger.debug(f"Excluded by pattern: {url} --- > {pattern}")
                 return True
         return False
 
@@ -53,6 +57,10 @@ class URLRules:
         domain = urlparse(url).netloc
         return any(allowed in domain for allowed in self.primary_domains + self.secondary_domains)
 
+    def is_primary_domain(self, url):
+        domain = urlparse(url).netloc
+        return any(allowed in domain for allowed in self.primary_domains)
+
     def get_domain_type(self, url):
         domain = urlparse(url).netloc.lower().lstrip("www.")
         if any(domain == p or domain.endswith("." + p) for p in self.primary_domains):
@@ -62,10 +70,10 @@ class URLRules:
         return "unknown"
 
     def is_visited(self, url):
-        return url in self.visited
+        return self.canonical(url) in self.visited
 
     def mark_visited(self, url):
-        self.visited.add(url)
+        self.visited.add(self.canonical(url))
 
     def should_follow(self, url):
 

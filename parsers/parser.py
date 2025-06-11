@@ -7,6 +7,9 @@ from scrapy.http import HtmlResponse
 import tempfile
 import json
 from unstructured.documents.elements import Element
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DocumentParser(ABC):
     @abstractmethod
@@ -64,7 +67,9 @@ class DocumentProcessor:
         for parser in self.parsers:
             if parser.can_process(response.url):
                 return parser.parse(response)
-        raise ValueError(f"No parser available for URL: {response.url}")
+        
+        logger.warning(f"No parser available for URL: {response.url}")
+        return []  # Return empty list or None depending on expected downstream behavior
 
 # === Example usage ===
 #if __name__ == "__main__":

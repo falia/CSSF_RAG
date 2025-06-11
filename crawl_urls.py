@@ -36,7 +36,7 @@ class UrlSpider(scrapy.Spider):
     vectorstore = Milvus(
         collection_name="cssf_documents",
         embedding_function=embedding_model,
-        connection_args={"host": "18.201.3.155", "port": "19530"},
+        connection_args={"host": "localhost", "port": "19530"},
         auto_id=True
     )
 
@@ -52,18 +52,21 @@ class UrlSpider(scrapy.Spider):
         return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
     def parse(self, response):
-
-        content_type = response.headers.get("Content-Type", b"").decode("utf-8").split(";")[0]
+        parsed_url = urlparse(response.url)
+        domain = parsed_url.netloc
 
         if not self.rules.is_nested_only(response.url):
             elements = self.processor.process(response)
 
+            # === Step 1: Semantic chunking
             title_chunks = chunk_by_title(elements)
 
+            # === Step 2: Recursive character splitting
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             split_docs = []
 
             for chunk in title_chunks:
+                # Check chunk.text is a non-empty string
                 if not isinstance(chunk.text, str) or not chunk.text.strip():
                     continue
 
@@ -72,7 +75,7 @@ class UrlSpider(scrapy.Spider):
                 }
                 split_docs.extend(splitter.create_documents([chunk.text], metadatas=[metadata]))
 
-            # Deduplication and Storage
+            # === Step 3: Deduplication and Storage
             new_docs = []
             for doc in split_docs:
                 doc_id = self.hash_document(doc)
@@ -84,8 +87,15 @@ class UrlSpider(scrapy.Spider):
 
             if new_docs:
                 self.vectorstore.add_documents(new_docs)
-                self.logger.info(f"Stored {len(new_docs)} new documents from {response.url}")
+                self.logger.debug(f"Stored {len(new_docs)} new documents from {response.url}")
 
+        self.logger.info(f"URL: {response.url}")
+
+        if not self.rules.is_primary_domain(response.url):
+            self.logger.info(f"No Primpary URL: {response.url}")
+            return
+
+        content_type = response.headers.get("Content-Type", b"").decode("utf-8").split(";")[0]
         if  not content_type.startswith("text/html"):
             return
 
@@ -96,14 +106,12 @@ class UrlSpider(scrapy.Spider):
             href = href.strip()
 
             full_url = urljoin(response.url, href)
-            full_url = canonicalize_url(full_url, keep_fragments=False)
+            #full_url = canonicalize_url(full_url, keep_fragments=False)
 
             if  self.rules.should_follow(full_url):
                 self.rules.mark_visited(full_url)
                 self.logger.info(f"Following primary: {full_url}")
                 yield response.follow(full_url, callback=self.parse)
-            #else:
-                #self.logger.info(f"Not followed url: {full_url}")
 
 
 # === Run the spider ===
@@ -115,7 +123,7 @@ def run_spider(output_file="urls_raw.json"):
         "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36",
         "LOG_LEVEL": "INFO",
         "CLOSESPIDER_ITEMCOUNT": 0,
-        "CLOSESPIDER_PAGECOUNT": 5,
+        #"CLOSESPIDER_PAGECOUNT": 50,
     })
 
     process.crawl(UrlSpider)
