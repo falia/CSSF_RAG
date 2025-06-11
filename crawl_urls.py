@@ -58,15 +58,12 @@ class UrlSpider(scrapy.Spider):
         if not self.rules.is_nested_only(response.url):
             elements = self.processor.process(response)
 
-            # === Step 1: Semantic chunking
             title_chunks = chunk_by_title(elements)
 
-            # === Step 2: Recursive character splitting
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             split_docs = []
 
             for chunk in title_chunks:
-                # Check chunk.text is a non-empty string
                 if not isinstance(chunk.text, str) or not chunk.text.strip():
                     continue
 
@@ -75,7 +72,7 @@ class UrlSpider(scrapy.Spider):
                 }
                 split_docs.extend(splitter.create_documents([chunk.text], metadatas=[metadata]))
 
-            # === Step 3: Deduplication and Storage
+            # Deduplication and Storage
             new_docs = []
             for doc in split_docs:
                 doc_id = self.hash_document(doc)
@@ -105,6 +102,8 @@ class UrlSpider(scrapy.Spider):
                 self.rules.mark_visited(full_url)
                 self.logger.info(f"Following primary: {full_url}")
                 yield response.follow(full_url, callback=self.parse)
+            else:
+                self.logger.info(f"Not followed url: {full_url}")
 
 
 # === Run the spider ===
