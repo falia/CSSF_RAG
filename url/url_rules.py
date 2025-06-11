@@ -46,7 +46,8 @@ class URLRules:
         return False
 
     def is_nested_only(self, url):
-        return any(re.search(pattern, url, re.IGNORECASE) for pattern in self.nested_only_patterns)
+        #return any(re.search(pattern, url, re.IGNORECASE) for pattern in self.nested_only_patterns)
+        return False
 
     def is_allowed_domain(self, url):
         domain = urlparse(url).netloc
@@ -67,6 +68,7 @@ class URLRules:
         self.visited.add(url)
 
     def should_follow(self, url):
+
         if self.is_excluded(url):
             return False
         if self.is_visited(url):
