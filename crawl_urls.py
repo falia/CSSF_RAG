@@ -36,7 +36,7 @@ class UrlSpider(scrapy.Spider):
     vectorstore = Milvus(
         collection_name="cssf_documents",
         embedding_function=embedding_model,
-        connection_args={"host": "54.195.171.92", "port": "19530"},
+        connection_args={"host": "18.201.3.155", "port": "19530"},
         auto_id=True
     )
 

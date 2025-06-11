@@ -1,6 +1,7 @@
 langchain-community
 langchain-unstructured 
-unstructured[all] 
+unstructured
+unstructured[pdf,html]
 pypandoc
 langchain-core
 langchain-milvus
@@ -10,3 +11,11 @@ pymilvus
 torch
 sentence-transformers
 langchain-huggingface
+libmagic-dev
+python-magic
+poppler-utils
+tesseract-ocr
+mesa-libGL
+pdfminer.six
+pi-heif
+unstructured-inference
