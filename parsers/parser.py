@@ -20,6 +20,28 @@ class DocumentParser(ABC):
     def parse(self, response):
         pass
 
+
+class EurlexHTMLParser(DocumentParser):
+    def can_process(self, url: str) -> bool:
+        return "eur-lex.europa.eu" in url and not url.lower().endswith(".pdf")
+
+    def parse(self, response):
+        raw_sections = response.css("div.PP4Contents").getall()
+        raw_html = "\n\n".join(raw_sections)
+
+        if raw_html:
+            with tempfile.NamedTemporaryFile(mode="w+", suffix=".html", delete=False, encoding="utf-8") as temp_file:
+                temp_file.write(raw_html)
+                temp_file_path = temp_file.name
+
+            return partition_html(
+                temp_file_path,
+                mode="elements",
+                unstructured_kwargs={"strategy": "hi_res"}
+            )
+
+        else: return []
+
 class CSSFHTMLParser(DocumentParser):
     def can_process(self, url: str) -> bool:
         return "www.cssf.lu" in url and not url.lower().endswith(".pdf")

@@ -6,45 +6,30 @@ import re
 from w3lib.url import canonicalize_url
 import os
 import mimetypes
-from parsers.parser import CSSFHTMLParser, PDFParser, DocumentProcessor
+from parsers.parser import EurlexHTMLParser, CSSFHTMLParser, PDFParser, DocumentProcessor
 from langchain_core.documents import Document
 
 from unstructured.chunking.title import chunk_by_title
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from langchain_community.vectorstores import Milvus
-from langchain_huggingface import HuggingFaceEmbeddings
-
-from pymilvus import connections
 import torch
 
 from url.url_rules import URLRules
 import hashlib
 
+from milvus_store import get_vectorstore
+
 class UrlSpider(scrapy.Spider):
     name = "cssf_urls"
     start_urls = ["https://www.cssf.lu/en/"]
 
-    connections.connect("default", host="localhost", port="19530")
-
-    embedding_model = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-large-en-v1.5",
-        model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"},
-        encode_kwargs={"normalize_embeddings": True}
-    )
-
-    vectorstore = Milvus(
-        collection_name="cssf_documents",
-        embedding_function=embedding_model,
-        connection_args={"host": "localhost", "port": "19530"},
-        auto_id=True
-    )
+    vectorstore = get_vectorstore()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.rules = URLRules()
-        self.processor = DocumentProcessor(parsers=[CSSFHTMLParser(), PDFParser()])
+        self.processor = DocumentProcessor(parsers=[EurlexHTMLParser(), CSSFHTMLParser(), PDFParser()])
         self.seen_hashes = set()
 
     def hash_document(self, doc: Document) -> str:
@@ -58,15 +43,12 @@ class UrlSpider(scrapy.Spider):
         if not self.rules.is_nested_only(response.url):
             elements = self.processor.process(response)
 
-            # === Step 1: Semantic chunking
             title_chunks = chunk_by_title(elements)
 
-            # === Step 2: Recursive character splitting
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             split_docs = []
 
             for chunk in title_chunks:
-                # Check chunk.text is a non-empty string
                 if not isinstance(chunk.text, str) or not chunk.text.strip():
                     continue
 
@@ -75,7 +57,7 @@ class UrlSpider(scrapy.Spider):
                 }
                 split_docs.extend(splitter.create_documents([chunk.text], metadatas=[metadata]))
 
-            # === Step 3: Deduplication and Storage
+            # Deduplication and Storage
             new_docs = []
             for doc in split_docs:
                 doc_id = self.hash_document(doc)
@@ -88,8 +70,6 @@ class UrlSpider(scrapy.Spider):
             if new_docs:
                 self.vectorstore.add_documents(new_docs)
                 self.logger.debug(f"Stored {len(new_docs)} new documents from {response.url}")
-
-        self.logger.info(f"URL: {response.url}")
 
         if not self.rules.is_primary_domain(response.url):
             self.logger.info(f"No Primpary URL: {response.url}")
