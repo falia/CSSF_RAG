@@ -16,3 +16,6 @@ pi-heif
 pdf2image
 unstructured[all-docs]
 langchain-milvus
+boto3
+langchain
+more_itertools

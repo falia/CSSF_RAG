@@ -12,7 +12,7 @@ def get_vectorstore():
     addr = connections.get_connection_addr("default")
     print(f"Connected to Milvus at {addr['host']}:{addr['port']}")
 
-    # Initialize the embedding model
+    # Initialize the embedding_provider model
     embedding_model = HuggingFaceEmbeddings(
         model_name="BAAI/bge-large-en-v1.5",
         model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"},

@@ -13,7 +13,7 @@ pdf_file_paths = [
 "C:\\Users\\faton\\Downloads\\Answer-to-the-public-consultation-Abrdn-Investments-Luxembourg-S.A.pdf"]  
 output_jsonl = "bge_embeddings_from_pdfs.jsonl"
 
-# === Load embedding model ===
+# === Load embedding_provider model ===
 embedding_model = HuggingFaceEmbeddings(
     model_name=model_name,
     model_kwargs={"device": "cpu"},  # Change to "cpu" if no GPU
@@ -44,7 +44,7 @@ with open(output_jsonl, "w", encoding="utf-8") as out_file:
 
     for i, (doc, embedding) in enumerate(zip(chunks, embeddings)):
         record = {
-            "embedding": embedding,
+            "embedding_provider": embedding,
             "text": doc.page_content,
             "metadata": {
                 "source": doc.metadata.get("source"),

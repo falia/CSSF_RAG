@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CodeBuild project using Ubuntu environment for CSSF_RAG GitHub repo
+
+Parameters:
+  GitHubRepoUrl:
+    Type: String
+    Default: https://github.com/falia/CSSF_RAG.git
+    Description: The public GitHub repository URL
+
+Resources:
+  CSSFRAGCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CSSFRAGCodeBuildServiceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  CSSFRAGCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: CSSF-RAG-Build
+      Source:
+        Type: GITHUB
+        Location: !Ref GitHubRepoUrl
+        GitCloneDepth: 1
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/ubuntu-standard:5.0
+        EnvironmentVariables:
+          - Name: PYTHON_VERSION
+            Value: "3.11"
+      ServiceRole: !GetAtt CSSFRAGCodeBuildRole.Arn
+      TimeoutInMinutes: 20
+      BuildSpec: |
+        version: 0.2
+
+        phases:
+          install:
+            commands:
+              - echo "Updating and installing system dependencies on Ubuntu..."
+              - apt-get update
+              - apt-get install -y software-properties-common
+              - add-apt-repository -y ppa:deadsnakes/ppa
+              - apt-get update
+              - apt-get install -y python3.11 python3.11-venv python3.11-distutils
+              - apt-get install -y tesseract-ocr poppler-utils libgl1 curl
+              - python3.11 -m venv venv
+              - source venv/bin/activate
+              - curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+              - pip install --upgrade pip
+              - pip install -r requirements.txt
+          build:
+            commands:
+              - echo "Executing crawl_urls.py..."
+              - source venv/bin/activate
+              - python crawl_urls.py
+Outputs:
+  CodeBuildProjectName:
+    Value: !Ref CSSFRAGCodeBuildProject
+    Description: The name of the created CodeBuild project
