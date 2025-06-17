@@ -10,6 +10,7 @@ endpoint_name = 'embedding-endpoint'
 # Prepare your input data
 payload = {
     "inputs": ["Your text to embed here"]
+
 }
 
 try:

@@ -12,6 +12,10 @@ class MilvusManager:
         self.collection_name = collection_name
         self.host = host
         self.port = port
+
+        self.uri = f"tcp://{host}:{int(port)}"
+        self.connection_args = {"uri": self.uri}
+
         self.vector_store = None
 
         # Establish connection to Milvus
