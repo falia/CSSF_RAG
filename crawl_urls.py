@@ -27,10 +27,10 @@ class UrlSpider(scrapy.Spider):
 
         # Initialize EmbeddingService with Milvus configuration
         milvus_config = {
-            'host': 'localhost',  # Update with your Milvus host
+            'host': '34.241.177.15',  # Update with your Milvus host
             'port': '19530',  # Update with your Milvus port
             'collection_name': 'cssf_documents',  # Collection name for CSSF documents
-            'connection_args': {"host": "localhost", "port": "19530"}
+            'connection_args': {"host": "34.241.177.15", "port": "19530"}
         }
 
         # Initialize embedding service (use_remote=True for SageMaker, False for local)
