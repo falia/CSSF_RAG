@@ -31,7 +31,7 @@ project_root = find_project_root()
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from embedding_provider.embedding_provider import EmbeddingService
+from embeddings.embedding_provider import EmbeddingService
 
 
 
@@ -349,7 +349,7 @@ def test_embedding_only_operations():
 def cleanup():
     """Cleanup connections"""
     try:
-        from milvus_provider.mivlus_provider import MilvusManager
+        from embeddings.milvus_provider.mivlus_provider import MilvusManager
         MilvusManager.disconnect()
         print("✓ Disconnected from Milvus")
     except Exception as e:
