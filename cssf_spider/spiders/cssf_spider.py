@@ -52,7 +52,6 @@ class CSSFSpider(scrapy.Spider):
                 yield scrapy.Request(
                     url=url,
                     callback=self.parse_main_sitemap,
-                    meta={"logger": self.logger}
                 )
             else:
                 yield scrapy.Request(
@@ -69,7 +68,6 @@ class CSSFSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=sitemap_url,
                 callback=self.parse_document_sitemap,
-                meta={"logger": self.logger}
             )
 
     def parse_document_sitemap(self, response):

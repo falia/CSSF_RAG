@@ -5,7 +5,8 @@ from datetime import datetime
 from urllib.parse import urljoin
 from typing import Optional, List, Dict
 from items.metadata import DocumentMetadata
-
+import logging
+logger = logging.getLogger(__name__)
 
 class MetadataExtractor:
     def extract_metadata(self, response) -> Optional[DocumentMetadata]:
@@ -38,10 +39,10 @@ class MetadataExtractor:
                 keywords=keywords,
                 content_hash=content_hash,
                 crawl_timestamp=datetime.now(),
-                file_size=len(response.text.encode('utf-8')),
+                file_size=len(response.text.encode('utf-8'))
             )
         except Exception as e:
-            response.meta.get('logger', None).error(f"Metadata extraction error: {e}")
+            logger.error(f"Metadata extraction error: {e}")
             return None
 
 

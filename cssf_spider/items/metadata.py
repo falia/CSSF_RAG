@@ -21,6 +21,6 @@ class DocumentMetadata:
     content_hash: str
     crawl_timestamp: datetime
     file_size: int
-    lang: str
-    super_category: str
+    lang: Optional[str] = None
+    super_category: Optional[str] = None
 

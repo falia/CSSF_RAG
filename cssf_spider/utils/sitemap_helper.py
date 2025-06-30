@@ -1,4 +1,6 @@
 import xml.etree.ElementTree as ET
+import logging
+logger = logging.getLogger(__name__)
 
 """ TODO add pages from sitemap - requires separate meta data extractor """
 """ TODO sometimes we have same document with three different urls but same content, to investigate if we remove duplicates """
@@ -19,7 +21,7 @@ class SitemapHelper:
                 ):
                     sitemap_urls.append(text)
         except ET.ParseError as e:
-            response.meta['logger'].error(f"Main sitemap XML parse error: {e}")
+            logger.error(f"Main sitemap XML parse error: {e}")
         return sitemap_urls
 
     @staticmethod
@@ -35,5 +37,5 @@ class SitemapHelper:
                 if loc is not None and loc.text:
                     urls.append(loc.text)
         except ET.ParseError as e:
-            response.meta['logger'].error(f"Document sitemap XML parse error: {e}")
+            logger.error(f"Document sitemap XML parse error: {e}")
         return urls

@@ -7,6 +7,11 @@ Parameters:
     Default: https://github.com/falia/CSSF_RAG.git
     Description: The public GitHub repository URL
 
+  CSSFDataBucket:
+    Type: String
+    Default: cssf-rag-data
+    Description: S3 bucket used by CodeBuild for input/output (if any)
+
 Resources:
   CSSFRAGCodeBuildRole:
     Type: AWS::IAM::Role
@@ -30,6 +35,14 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${CSSFDataBucket}
+                  - !Sub arn:aws:s3:::${CSSFDataBucket}/*
 
   CSSFRAGCodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -39,38 +52,45 @@ Resources:
         Type: GITHUB
         Location: !Ref GitHubRepoUrl
         GitCloneDepth: 1
+        GitSubmodulesConfig:
+          FetchSubmodules: false
+        BuildSpec: |
+          version: 0.2
+
+          phases:
+            install:
+              commands:
+                - echo "Updating and installing system dependencies on Ubuntu..."
+                - apt-get update
+                - apt-get install -y software-properties-common
+                - add-apt-repository -y ppa:deadsnakes/ppa
+                - apt-get update
+                - apt-get install -y python3.11 python3.11-venv python3.11-distutils
+                - apt-get install -y tesseract-ocr poppler-utils libgl1 curl
+                - python3.11 -m venv venv
+                - . venv/bin/activate
+                - curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+                - pip install --upgrade pip
+                - pip install -r requirements.txt
+            build:
+              commands:
+                - echo "Executing crawl_urls.py..."
+                - . venv/bin/activate
+                - cd cssf_spider
+                - python3.11 run_cssf_spider.py
+      SourceVersion: new
+      Artifacts:
+        Type: NO_ARTIFACTS
       Environment:
         Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/ubuntu-standard:5.0
+        ComputeType: BUILD_GENERAL1_LARGE
+        Image: aws/codebuild/standard:7.0
         EnvironmentVariables:
           - Name: PYTHON_VERSION
             Value: "3.11"
       ServiceRole: !GetAtt CSSFRAGCodeBuildRole.Arn
       TimeoutInMinutes: 20
-      BuildSpec: |
-        version: 0.2
 
-        phases:
-          install:
-            commands:
-              - echo "Updating and installing system dependencies on Ubuntu..."
-              - apt-get update
-              - apt-get install -y software-properties-common
-              - add-apt-repository -y ppa:deadsnakes/ppa
-              - apt-get update
-              - apt-get install -y python3.11 python3.11-venv python3.11-distutils
-              - apt-get install -y tesseract-ocr poppler-utils libgl1 curl
-              - python3.11 -m venv venv
-              - source venv/bin/activate
-              - curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-              - pip install --upgrade pip
-              - pip install -r requirements.txt
-          build:
-            commands:
-              - echo "Executing crawl_urls.py..."
-              - source venv/bin/activate
-              - python crawl_urls.py
 Outputs:
   CodeBuildProjectName:
     Value: !Ref CSSFRAGCodeBuildProject
