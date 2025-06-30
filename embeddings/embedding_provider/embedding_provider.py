@@ -39,34 +39,6 @@ class TEIContentHandler(EmbeddingsContentHandler):
             raise ValueError(f"Unexpected TEI response format: {type(response_json)}")
 
 
-class LegacyContentHandler(EmbeddingsContentHandler):
-    content_type = "application/json"
-    accepts = "application/json"
-
-    def transform_input(self, inputs: List[str], model_kwargs: Dict) -> bytes:
-        input_str = json.dumps({"inputs": inputs, **model_kwargs})
-        return input_str.encode("utf-8")
-
-    def transform_output(self, output: bytes) -> List[List[float]]:
-        response_json = json.loads(output.read().decode("utf-8"))
-
-        if "vectors" in response_json:
-            return response_json["vectors"]
-        elif isinstance(response_json, list):
-            if (len(response_json) > 0 and isinstance(response_json[0], list) and
-                len(response_json[0]) > 0 and isinstance(response_json[0][0], list) and
-                len(response_json[0][0]) > 0 and isinstance(response_json[0][0][0], list)):
-                return [item[0][0] for item in response_json]
-            else:
-                return response_json
-        elif "embeddings" in response_json:
-            return response_json["embeddings"]
-        elif "outputs" in response_json:
-            return response_json["outputs"]
-        else:
-            return response_json
-
-
 class SageMakerEmbeddingProvider(EmbeddingProvider):
     def __init__(self, endpoint_name: str = 'embedding-endpoint', region_name: str = 'eu-west-1', use_tei: bool = True, max_batch_size: int = 8):
         self.endpoint_name = endpoint_name
@@ -74,7 +46,7 @@ class SageMakerEmbeddingProvider(EmbeddingProvider):
         self.use_tei = use_tei
         self.max_batch_size = max_batch_size
 
-        content_handler = TEIContentHandler() if use_tei else LegacyContentHandler()
+        content_handler = TEIContentHandler()
 
         self.embeddings = SagemakerEndpointEmbeddings(
             endpoint_name=endpoint_name,

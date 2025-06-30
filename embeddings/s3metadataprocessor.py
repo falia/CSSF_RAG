@@ -1,4 +1,3 @@
-
 import json
 import boto3
 
@@ -11,6 +10,7 @@ import logging
 from embedding_provider.embedding_provider import EmbeddingService
 from chunker.document_chunker import DocumentChunker
 from parsers.parser import EurlexHTMLParser, CSSFHTMLParser, PDFParser, DocumentProcessor
+
 
 class S3MetadataProcessor:
 
@@ -122,24 +122,51 @@ class S3MetadataProcessor:
         base = doc.page_content + str(doc.metadata.get("source", ""))
         return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
+    def flatten_metadata_for_search(self, metadata):
+        """
+        Flatten metadata to make important fields searchable while preserving complex data
+        """
+        flattened = {
+            # Direct searchable fields (frequently queried)
+            'doc_id': metadata.get('doc_id', ''),
+            'title': metadata.get('title', ''),
+            'document_type': metadata.get('document_type', ''),
+            'document_number': metadata.get('document_number', ''),
+            'lang': metadata.get('lang', ''),
+            'super_category': metadata.get('super_category', ''),
+            'subtitle': metadata.get('subtitle', ''),
+            'url': metadata.get('url', ''),
+            'crawl_timestamp': metadata.get('crawl_timestamp', ''),
+            'file_size': metadata.get('file_size', 0),
+            'publication_date': metadata.get('publication_date') or '',
+            'update_date': metadata.get('update_date') or '',
+            'content_hash': metadata.get('content_hash', ''),
+
+            # Flatten important arrays to searchable pipe-separated strings
+            'entities_text': ' | '.join(metadata.get('entities', [])),
+            'keywords_text': ' | '.join(metadata.get('keywords', [])),
+            'themes_text': ' | '.join(metadata.get('themes', [])),
+
+            # Bundle complex/nested data into JSON for when you need full details
+            'complex_metadata': json.dumps({
+                'content_hash': metadata.get('content_hash', ''),
+                'top_related': metadata.get('top_related', []),
+                'bottom_related': metadata.get('bottom_related', []),
+                'entities': metadata.get('entities', []),  # Keep original arrays too
+                'keywords': metadata.get('keywords', []),
+                'themes': metadata.get('themes', []),
+                # Add any other complex fields here
+                'crawl_session': metadata.get('crawl_session', ''),
+                'source': metadata.get('source', ''),
+                'processing_metadata': metadata.get('processing_metadata', {})
+            })
+        }
+
+        return flattened
+
     def sanitize_metadata_json(self, metadata):
-        sanitized = {}
-
-        for key, value in metadata.items():
-            if value is None:
-                # Convert None to empty string or appropriate default
-                sanitized[key] = ""
-            elif isinstance(value, list) and len(value) > 0 and isinstance(value[0], dict):
-                # Convert complex nested lists to JSON strings
-                sanitized[key] = json.dumps(value)
-            elif isinstance(value, list):
-                # Keep simple lists as-is (like entities, keywords, themes)
-                sanitized[key] = value
-            else:
-                # Keep other values as-is
-                sanitized[key] = value
-
-        return sanitized
+        """Legacy method - now replaced by flatten_metadata_for_search"""
+        return self.flatten_metadata_for_search(metadata)
 
     def process_document(self, metadata: Dict[str, Any]) -> List[Document]:
         """Process a single document with its metadata and referenced files."""
@@ -168,21 +195,20 @@ class S3MetadataProcessor:
                 # Chunk the document
                 chunked_docs = self.chunker.chunk_document(elements, original_url)
 
-                sanitized_metadata_json = self.sanitize_metadata_json(metadata)
+                # Flatten metadata for Milvus compatibility and searchability
+                flattened_metadata = self.flatten_metadata_for_search(metadata)
 
                 # Add complete metadata from the crawl to each chunk
                 for doc in chunked_docs:
-                    # Keep the entire original metadata for each chunk
-                    complete_metadata = sanitized_metadata_json.copy()
+                    # Use flattened metadata that's optimized for search
+                    doc.metadata = flattened_metadata.copy()
 
-                    # Add only processing-specific metadata not already in the original
-                    # complete_metadata.update({
-                        # 'crawl_session': metadata.get('session_id', 'unknown')
+                    # Add any chunk-specific metadata if needed
+                    # You can add chunk-specific info here if your chunker provides it
+                    # doc.metadata.update({
+                    #     'chunk_index': getattr(doc, 'chunk_index', 0),
+                    #     'chunk_id': f"{flattened_metadata['doc_id']}_chunk_{getattr(doc, 'chunk_index', 0)}"
                     # })
-
-                    # TODO see retrieve metadata coming from chunking
-                    doc.metadata = complete_metadata
-
 
                 all_documents.extend(chunked_docs)
 
@@ -206,7 +232,7 @@ class S3MetadataProcessor:
             if doc_id in self.seen_hashes:
                 continue
 
-            # Add doc_id to metadata
+            # Add doc_id to metadata (this will overwrite the original doc_id if it exists)
             doc.metadata["doc_id"] = doc_id
             self.seen_hashes.add(doc_id)
             new_docs.append(doc)
@@ -251,6 +277,9 @@ class S3MetadataProcessor:
                 if not metadata:
                     continue
 
+                # Add session info to metadata
+                metadata['crawl_session'] = session_id
+
                 # Process documents
                 documents = self.process_document(metadata)
                 total_processed += len(documents)
@@ -275,7 +304,6 @@ class S3MetadataProcessor:
         self.logger.info(f"Session {session_id} complete: {summary}")
         return summary
 
-
     def process_latest_session(self) -> Dict[str, Any]:
         """Process the most recent crawl session."""
         latest_session = self.get_most_recent_session()
@@ -287,7 +315,6 @@ class S3MetadataProcessor:
 
 
 def main():
-
     S3_BUCKET = "cssf-crawl"
     SESSION_ID = None
     MILVUS_CONFIG = {
