@@ -33,7 +33,7 @@ class S3MetadataProcessor:
             milvus_config = {
                 'host': '34.241.177.15',
                 'port': '19530',
-                'collection_name': 'cssf_documents_final_crawl',
+                'collection_name': 'cssf_documents_final',
                 'connection_args': {"host": "34.241.177.15", "port": "19530"}
             }
 

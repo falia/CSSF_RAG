@@ -90,7 +90,7 @@ class EmbeddingService:
 
         self.milvus = None
         if milvus_config:
-            from embeddings.milvus_provider.mivlus_provider import MilvusManager
+            from milvus_provider.mivlus_provider import MilvusManager
             host = milvus_config.get('host', 'localhost')
             port = milvus_config.get('port', '19530')
             collection_name = milvus_config.get('collection_name', 'embeddings')
