@@ -97,6 +97,8 @@ Resources:
         EnvironmentVariables:
           - Name: PYTHON_VERSION
             Value: "3.11"
+        EphemeralStorage:
+          SizeInGB: 500
       ServiceRole: !GetAtt CSSFRAGCodeBuildRole.Arn
       TimeoutInMinutes: 20
 
