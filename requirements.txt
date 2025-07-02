@@ -19,3 +19,4 @@ langchain-milvus
 boto3
 langchain
 more_itertools
+huggingface_hub[hf_xet]

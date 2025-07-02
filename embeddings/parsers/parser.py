@@ -41,9 +41,25 @@ class EurlexHTMLParser(DocumentParser):
 
             try:
                 elements = partition_html(
-                    temp_file_path,
-                    mode="elements",
-                    unstructured_kwargs={"strategy": "hi_res"}
+                    filename=temp_file_path,
+
+                    # HTML doesn't have strategies like PDF
+                    # Remove: strategy="hi_res"
+
+                    # HTML-specific parameters
+                    include_page_breaks=False,  # HTML has no pages
+                    infer_table_structure=True,  # Keep for tables
+                    skip_headers_and_footers=True,  # Skip nav content
+
+                    # Chunking (same as your PDF for consistency)
+                    max_characters=1500,
+                    combine_text_under_n_chars=300,
+                    new_after_n_chars=1200,
+
+                    chunking_strategy="by_title",
+
+                    # Language support
+                    languages=["eng", "fra"],
                 )
                 return elements
             finally:
@@ -76,9 +92,26 @@ class CSSFHTMLParser(DocumentParser):
 
             try:
                 elements = partition_html(
-                    temp_file_path,
-                    mode="elements",
-                    unstructured_kwargs={"strategy": "hi_res"}
+                    filename=temp_file_path,
+
+                    # HTML doesn't have strategies like PDF
+                    # Remove: strategy="hi_res"
+
+                    # HTML-specific parameters
+                    include_page_breaks=False,  # HTML has no pages
+                    infer_table_structure=True,  # Keep for tables
+                    skip_headers_and_footers=True,  # Skip nav content
+
+                    # Chunking (same as your PDF for consistency)
+                    max_characters=1500,
+                    combine_text_under_n_chars=300,
+                    new_after_n_chars=1200,
+
+                    extract_image_block_types=["Image", "Table"],
+                    chunking_strategy="by_title",
+
+                    # Language support
+                    languages=["eng", "fra"],
                 )
                 return elements
             finally:
@@ -104,9 +137,22 @@ class PDFParser(DocumentParser):
 
         try:
             elements = partition_pdf(
-                temp_pdf_path,
-                mode="elements",
-                unstructured_kwargs={"strategy": "hi_res"}
+                filename=temp_pdf_path,
+
+                strategy="hi_res",
+                infer_table_structure=True,
+                include_page_breaks=True,
+                languages=["eng", "fra"],
+
+                max_characters=1500,
+                combine_text_under_n_chars=300,
+                new_after_n_chars=1200,
+
+                hi_res_model_name = "yolox",
+                #hi_res_model_name="detectron2_onnx",
+                extract_images_in_pdf=False,
+                extract_image_block_types=["Image", "Table"],
+                chunking_strategy="by_title"
             )
             return elements
         finally:
@@ -132,9 +178,24 @@ class GenericHTMLParser(DocumentParser):
 
         try:
             elements = partition_html(
-                temp_file_path,
-                mode="elements",
-                unstructured_kwargs={"strategy": "hi_res"}
+                filename=temp_file_path,
+
+                # HTML doesn't have strategies like PDF
+                # Remove: strategy="hi_res"
+
+                # HTML-specific parameters
+                include_page_breaks=False,  # HTML has no pages
+                infer_table_structure=True,  # Keep for tables
+                skip_headers_and_footers=True,  # Skip nav content
+
+                # Chunking (same as your PDF for consistency)
+                max_characters=1500,
+                combine_text_under_n_chars=300,
+                new_after_n_chars=1200,
+
+                # Language support
+                languages=["eng", "fra"],
+                chunking_strategy="by_title"
             )
             return elements
         finally:
@@ -172,22 +233,38 @@ class DocumentProcessor:
 
 
 # === Example usage ===
+# === Example usage ===
 if __name__ == "__main__":
-    # Example with file content
     processor = DocumentProcessor(parsers=[
         EurlexHTMLParser(),
         CSSFHTMLParser(),
         PDFParser(),
-        GenericHTMLParser()  # Fallback parser
+        GenericHTMLParser()
     ])
 
-    # Example usage with bytes content
-    # with open("document.pdf", "rb") as f:
-    #     content = f.read()
-    #
-    # elements = processor.process(
-    #     content=content,
-    #     url="https://example.com/document.pdf",
+    #url = "https://www.cssf.lu/wp-content/uploads/cssf25_892eng.pdf"
+    url = "https://www.cssf.lu/en/2025/07/new-procedure-internalised-settlement-reporting-under-article-9-of-csdr-available-since-1-july-2025/"
+    try:
+        import requests
+        response = requests.get(url)
+        response.raise_for_status()
+        content = response.content
+        content_type = response.headers.get("Content-Type", "application/pdf")
+
+        elements = processor.process(content=content, url=url, content_type=content_type)
+        print(f"Loaded {len(elements)} sections.")
+
+        for i, element in enumerate(elements):
+            print(f"\n--- Element {i+1} ---")
+            print(f"Type: {type(element)}")
+            if hasattr(element, 'category'):
+                print(f"Category: {element.category}")
+            if hasattr(element, 'text'):
+                print(f"Text: {element.text}")
+            else:
+                print(element)
+    except Exception as e:
+        logger.error(f"Failed to download or process the document: {e}")
     #     content_type="application/pdf"
     # )
     #

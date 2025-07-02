@@ -168,6 +168,50 @@ class S3MetadataProcessor:
         """Legacy method - now replaced by flatten_metadata_for_search"""
         return self.flatten_metadata_for_search(metadata)
 
+    def convert_elements_to_documents(self, elements, metadata: Dict[str, Any]) -> List[Document]:
+        """Convert unstructured elements to LangChain Documents."""
+        documents = []
+
+        for i, element in enumerate(elements):
+            try:
+                # Extract text from CompositeElement
+                if hasattr(element, 'text') and element.text:
+                    text_content = element.text.strip()
+                elif hasattr(element, 'page_content'):
+                    text_content = element.page_content.strip()
+                else:
+                    text_content = str(element).strip()
+
+                if not text_content:
+                    continue
+
+                # Create a copy of metadata for this document
+                doc_metadata = metadata.copy()
+
+                # Add element-specific metadata if available
+                if hasattr(element, 'metadata') and element.metadata:
+                    if isinstance(element.metadata, dict):
+                        doc_metadata.update(element.metadata)
+                    elif hasattr(element.metadata, '__dict__'):
+                        doc_metadata.update(element.metadata.__dict__)
+
+                # Add element index
+                doc_metadata['element_index'] = i
+
+                # Create LangChain Document
+                doc = Document(
+                    page_content=text_content,
+                    metadata=doc_metadata
+                )
+
+                documents.append(doc)
+
+            except Exception as e:
+                self.logger.error(f"Error converting element {i} to document: {e}")
+                continue
+
+        return documents
+
     def process_document(self, metadata: Dict[str, Any]) -> List[Document]:
         """Process a single document with its metadata and referenced files."""
         all_documents = []
@@ -192,25 +236,19 @@ class S3MetadataProcessor:
                 # Process document using your existing processor with content and params
                 elements = self.processor.process(content, original_url, content_type)
 
-                # Chunk the document
-                chunked_docs = self.chunker.chunk_document(elements, original_url)
-
                 # Flatten metadata for Milvus compatibility and searchability
                 flattened_metadata = self.flatten_metadata_for_search(metadata)
 
-                # Add complete metadata from the crawl to each chunk
-                for doc in chunked_docs:
-                    # Use flattened metadata that's optimized for search
-                    doc.metadata = flattened_metadata.copy()
+                # Option 1: Convert elements to Documents (if chunking is disabled)
+                documents = self.convert_elements_to_documents(elements, flattened_metadata)
+                all_documents.extend(documents)
 
-                    # Add any chunk-specific metadata if needed
-                    # You can add chunk-specific info here if your chunker provides it
-                    # doc.metadata.update({
-                    #     'chunk_index': getattr(doc, 'chunk_index', 0),
-                    #     'chunk_id': f"{flattened_metadata['doc_id']}_chunk_{getattr(doc, 'chunk_index', 0)}"
-                    # })
-
-                all_documents.extend(chunked_docs)
+                # Option 2: Use chunking (uncomment if you want to enable chunking)
+                # chunked_docs = self.chunker.chunk_document(elements, original_url)
+                # for doc in chunked_docs:
+                #     # Add the flattened metadata to each chunk
+                #     doc.metadata.update(flattened_metadata)
+                # all_documents.extend(chunked_docs)
 
             except Exception as e:
                 self.logger.error(f"Error processing document {file_info.get('url', 'unknown')}: {e}")
@@ -237,7 +275,7 @@ class S3MetadataProcessor:
             self.seen_hashes.add(doc_id)
             new_docs.append(doc)
 
-            # Prepare for batch storage
+            # Prepare for batch storage - now safe because doc is a Document object
             texts_to_store.append(doc.page_content)
             metadatas_to_store.append(doc.metadata)
 
@@ -320,7 +358,7 @@ def main():
     MILVUS_CONFIG = {
         'host': '34.241.177.15',
         'port': '19530',
-        'collection_name': 'cssf_documents_final',
+        'collection_name': 'cssf_documents_final_demo',
         'connection_args': {"host": "34.241.177.15", "port": "19530"}
     }
 
