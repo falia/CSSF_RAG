@@ -79,21 +79,24 @@ class S3MetadataProcessor:
         return most_recent
 
     def get_session_metadata_files(self, session_id: str) -> List[str]:
-        """Get all metadata.json files for a specific session."""
+        """Get all metadata.json files for a specific session using pagination."""
         try:
-            response = self.s3.list_objects_v2(
+            paginator = self.s3.get_paginator('list_objects_v2')
+            page_iterator = paginator.paginate(
                 Bucket=self.s3_bucket,
-                Prefix=f"{session_id}/",
+                Prefix=f"{session_id}/"
             )
 
             metadata_files = []
-            for obj in response.get('Contents', []):
-                if obj['Key'].endswith('metadata.json'):
-                    metadata_files.append(obj['Key'])
+            for page in page_iterator:
+                for obj in page.get('Contents', []):
+                    if obj['Key'].endswith('metadata.json'):
+                        metadata_files.append(obj['Key'])
 
             return metadata_files
+
         except Exception as e:
-            self.logger.error(f"Error listing metadata files for session {session_id}: {e}")
+            self.logger.error(f"Error listing metadata files for session {session_id}: {e}", exc_info=True)
             return []
 
     def read_metadata_from_s3(self, s3_key: str) -> Dict[str, Any]:
@@ -343,6 +346,8 @@ class S3MetadataProcessor:
         # Get all metadata files for this session
         metadata_files = self.get_session_metadata_files(session_id)
 
+        print("Meta data files to process ---------------------------------------------------------", len(metadata_files))
+
         if not metadata_files:
             self.logger.warning(f"No metadata files found for session {session_id}")
             return {'processed': 0, 'stored': 0, 'errors': 0}
@@ -401,7 +406,7 @@ def main():
     MILVUS_CONFIG = {
         'host': '34.241.177.15',
         'port': '19530',
-        'collection_name': 'cssf_documents_final_demo_2',
+        'collection_name': 'cssf_documents_final_demo_3',
         'connection_args': {"host": "34.241.177.15", "port": "19530"}
     }
 
