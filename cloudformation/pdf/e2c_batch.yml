@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple Ubuntu EC2 c5n.9xlarge instance with access to Milvus and SageMaker endpoints using default VPC
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+
+  CSSFDataBucket:
+    Type: String
+    Default: cssf-crawl
+    Description: S3 bucket containing crawl data
+
+  SageMakerEndpointName:
+    Type: String
+    Default: embedding-endpoint
+    Description: Name of the SageMaker endpoint for embeddings
+
+Resources:
+  # Security Group - allows SSH (outbound traffic is allowed by default)
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for CSSF processing instance
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+      Tags:
+        - Key: Name
+          Value: CSSF-SecurityGroup
+
+  # IAM Role with minimal required permissions
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CSSFProcessingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # S3 Access
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${CSSFDataBucket}
+                  - !Sub arn:aws:s3:::${CSSFDataBucket}/*
+              # SageMaker Endpoint Access
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${SageMakerEndpointName}'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  # EC2 Instance using default VPC
+  ProcessingInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-01f23391a59163da9  # Ubuntu Server 22.04 LTS (update for your region if needed)
+      InstanceType: c5n.9xlarge
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 100
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update
+          apt-get install -y python3-pip awscli
+          echo "Instance ready for CSSF processing setup"
+      Tags:
+        - Key: Name
+          Value: CSSF-Processing-Instance
+
+Outputs:
+  InstanceId:
+    Value: !Ref ProcessingInstance
+    Description: EC2 Instance ID
+
+  PublicIP:
+    Value: !GetAtt ProcessingInstance.PublicIp
+    Description: Public IP address
+
+  PrivateIP:
+    Value: !GetAtt ProcessingInstance.PrivateIp
+    Description: Private IP address
+
+  SSHCommand:
+    Value: !Sub "ssh -i ${KeyPairName}.pem ubuntu@${ProcessingInstance.PublicIp}"
+    Description: SSH command to connect
+
+  InstanceSpecs:
+    Value: "c5n.9xlarge - 36 vCPUs, 96GB RAM"
+    Description: Instance specifications
