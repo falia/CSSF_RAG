@@ -12,6 +12,11 @@ Parameters:
     Default: cssf-rag-data
     Description: S3 bucket used by CodeBuild for input/output (if any)
 
+  SageMakerEndpointName:
+    Type: String
+    Default: embedding-endpoint
+    Description: Name of the SageMaker endpoint to invoke
+
 Resources:
   CSSFRAGCodeBuildRole:
     Type: AWS::IAM::Role
@@ -43,6 +48,10 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${CSSFDataBucket}
                   - !Sub arn:aws:s3:::${CSSFDataBucket}/*
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${SageMakerEndpointName}'
 
   CSSFRAGCodeBuildProject:
     Type: AWS::CodeBuild::Project

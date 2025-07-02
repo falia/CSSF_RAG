@@ -162,6 +162,28 @@ Resources:
                   - logs:PutLogEvents
                 Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
 
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-CodeBuildRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SageMakerInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${EndpointName}'
+
+
 Outputs:
   EndpointName:
     Description: 'Name of the SageMaker endpoint'
@@ -192,3 +214,9 @@ Outputs:
     Value: 'Use TEIEmbeddingService class from the Python client code provided'
     Export:
       Name: !Sub '${AWS::StackName}-Usage'
+
+  CodeBuildRoleArn:
+    Description: 'CodeBuild role with SageMaker endpoint access'
+    Value: !GetAtt CodeBuildServiceRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-CodeBuildRoleArn'
