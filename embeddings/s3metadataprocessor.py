@@ -168,13 +168,15 @@ class S3MetadataProcessor:
         """Legacy method - now replaced by flatten_metadata_for_search"""
         return self.flatten_metadata_for_search(metadata)
 
+    import json
+
     def convert_elements_to_documents(self, elements, metadata: Dict[str, Any]) -> List[Document]:
         """Convert unstructured elements to LangChain Documents."""
         documents = []
 
         for i, element in enumerate(elements):
             try:
-                # Extract text from CompositeElement
+                # Extract text content
                 if hasattr(element, 'text') and element.text:
                     text_content = element.text.strip()
                 elif hasattr(element, 'page_content'):
@@ -185,18 +187,46 @@ class S3MetadataProcessor:
                 if not text_content:
                     continue
 
-                # Create a copy of metadata for this document
-                doc_metadata = metadata.copy()
+                # Safely handle metadata - ensure it's a dictionary
+                if isinstance(metadata, dict):
+                    doc_metadata = metadata.copy()
+                else:
+                    self.logger.warning(f"Expected dict for metadata, got {type(metadata)}. Using empty dict.")
+                    doc_metadata = {}
 
-                # Add element-specific metadata if available
+                # Handle complex_metadata - it might be a JSON string
+                complex_metadata_dict = {}
+                if 'complex_metadata' in doc_metadata:
+                    if isinstance(doc_metadata['complex_metadata'], str):
+                        # Parse JSON string to dict
+                        try:
+                            complex_metadata_dict = json.loads(doc_metadata['complex_metadata'])
+                        except json.JSONDecodeError as e:
+                            self.logger.warning(f"Failed to parse complex_metadata JSON: {e}")
+                            complex_metadata_dict = {}
+                    elif isinstance(doc_metadata['complex_metadata'], dict):
+                        complex_metadata_dict = doc_metadata['complex_metadata'].copy()
+
+                # Only extract page_number from unstructured element metadata
                 if hasattr(element, 'metadata') and element.metadata:
-                    if isinstance(element.metadata, dict):
-                        doc_metadata.update(element.metadata)
-                    elif hasattr(element.metadata, '__dict__'):
-                        doc_metadata.update(element.metadata.__dict__)
+                    try:
+                        if isinstance(element.metadata, dict):
+                            # Only keep page_number
+                            if 'page_number' in element.metadata:
+                                doc_metadata['page_number'] = element.metadata['page_number']
 
-                # Add element index
-                doc_metadata['element_index'] = i
+                            # Store all other element metadata in complex_metadata
+                            other_metadata = {k: v for k, v in element.metadata.items() if k != 'page_number'}
+                            if other_metadata:
+                                complex_metadata_dict['element_metadata'] = other_metadata
+                    except Exception as e:
+                        self.logger.warning(f"Error processing element metadata for element {i}: {e}")
+
+                # Add element index to complex metadata
+                complex_metadata_dict['element_index'] = i
+
+                # Convert complex_metadata back to JSON string for Milvus
+                doc_metadata['complex_metadata'] = json.dumps(complex_metadata_dict)
 
                 # Create LangChain Document
                 doc = Document(
@@ -208,6 +238,19 @@ class S3MetadataProcessor:
 
             except Exception as e:
                 self.logger.error(f"Error converting element {i} to document: {e}")
+                # Create a minimal document to avoid losing content
+                try:
+                    minimal_doc = Document(
+                        page_content=text_content if 'text_content' in locals() else str(element),
+                        metadata={
+                            'element_index': i,
+                            'error': str(e),
+                            'complex_metadata': json.dumps({'element_index': i, 'error': str(e)})
+                        }
+                    )
+                    documents.append(minimal_doc)
+                except:
+                    self.logger.error(f"Failed to create minimal document for element {i}")
                 continue
 
         return documents
@@ -358,7 +401,7 @@ def main():
     MILVUS_CONFIG = {
         'host': '34.241.177.15',
         'port': '19530',
-        'collection_name': 'cssf_documents_final_demo',
+        'collection_name': 'cssf_documents_final_demo_2',
         'connection_args': {"host": "34.241.177.15", "port": "19530"}
     }
 

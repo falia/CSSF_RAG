@@ -66,6 +66,9 @@ class MilvusManager:
             FieldSchema(name="content_hash", dtype=DataType.VARCHAR, max_length=100),
             FieldSchema(name="file_size", dtype=DataType.INT64),
 
+            # NEW: Add page_number from unstructured elements
+            FieldSchema(name="page_number", dtype=DataType.INT64),
+
             # Flattened searchable arrays (pipe-separated strings)
             FieldSchema(name="entities_text", dtype=DataType.VARCHAR, max_length=2000),
             FieldSchema(name="keywords_text", dtype=DataType.VARCHAR, max_length=2000),
